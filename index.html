@@ -13,10 +13,8 @@
         input, select { width: 100%; padding: 10px; border-radius: 5px; border: 1px solid #94a3b8; background: #ffffff; color: #333333; box-sizing: border-box; font-size: 1.05em; font-weight: bold; }
         label { font-size: 0.85em; color: #475569; display: block; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
         
-        /* Ayuda de factura */
         .help-text { font-size: 0.75em; color: #64748b; margin-top: 4px; display: block; line-height: 1.3; }
 
-        /* Estilo para el slider de porcentaje */
         .slider-container { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 20px; }
         .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .slider-header label { margin-bottom: 0; font-size: 0.95em; color: #0f172a; }
@@ -41,11 +39,23 @@
         .btn-print { display: block; width: 100%; max-width: 300px; margin: 20px auto 0 auto; padding: 15px; background-color: #0284c7; color: white; border: none; border-radius: 5px; font-size: 1.1em; font-weight: bold; cursor: pointer; text-align: center; transition: background 0.3s; }
         .btn-print:hover { background-color: #0369a1; }
 
+        /* Estilos para el Cuadro de Diálogo (Modal) */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #ffffff; padding: 30px; border-radius: 8px; max-width: 550px; width: 90%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .modal-title { font-size: 1.1em; font-weight: bold; color: #0f172a; margin-bottom: 15px; }
+        .modal-text { font-size: 0.85em; color: #475569; line-height: 1.5; text-align: justify; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .modal-buttons { display: flex; gap: 15px; justify-content: flex-end; }
+        .btn-modal-cancel { padding: 10px 20px; background: #e2e8f0; color: #334155; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-modal-cancel:hover { background: #cbd5e1; }
+        .btn-modal-accept { padding: 10px 20px; background: #16a34a; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-modal-accept:hover { background: #15803d; }
+
         @media print {
             body { background: #ffffff; padding: 0; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             .no-print { display: none !important; }
             .card { border: none; box-shadow: none; margin: 0; padding: 0; max-width: 100%; }
             .metric { border: 1px solid #cbd5e1; }
+            .modal-overlay { display: none !important; }
         }
     </style>
 </head>
@@ -54,7 +64,6 @@
 <div class="card">
     <h2 class="no-print">⚡ Cotizador de Energía Solar</h2>
     
-    <!-- Sección de Entradas -->
     <div class="grid-inputs no-print">
         <div>
             <label>Consumo Promedio (kWh/mes):</label>
@@ -69,11 +78,10 @@
         <div>
             <label>Tarifa Actual ($/kWh):</label>
             <input type="number" id="tarifa" value="0.18" step="0.01" oninput="calcular()">
-            <span class="help-text">Divide el total a pagar entre los kWh consumidos.</span>
+            <span class="help-text">La tarifa aparece en tu factura como TARIFA APLICADA. Cargo de Consumo. O bien divide lo que pagaras de Consumo de Energía entre el total del energía KWh registrada.</span>
         </div>
     </div>
 
-    <!-- Selector de Porcentaje de Ahorro Deseado -->
     <div class="slider-container no-print">
         <div class="slider-header">
             <label for="sliderAhorro">🎯 ¿Cuánto de tu factura deseas cubrir con energía solar?</label>
@@ -82,7 +90,6 @@
         <input type="range" id="sliderAhorro" min="10" max="80" step="5" value="80" oninput="actualizarSlider()">
     </div>
 
-    <!-- Resultados -->
     <h3 style="display: none;" class="print-only">Preoferta Comercial - Sistema Fotovoltaico</h3>
     <div class="grid-4">
         <div class="metric">
@@ -121,7 +128,6 @@
         <tbody id="tablaCuerpo"></tbody>
     </table>
     
-    <!-- Disclaimer Legal -->
     <div class="disclaimer-box">
         <div class="disclaimer-title">Aviso Legal y Condiciones de la Preoferta:</div>
         <div class="disclaimer-text">
@@ -129,11 +135,38 @@
         </div>
     </div>
 
-    <button class="btn-print no-print" onclick="window.print()">🖨️ Descargar Preoferta (PDF)</button>
+    <button class="btn-print no-print" onclick="abrirModal()">🖨️ Descargar Preoferta (PDF)</button>
+</div>
+
+<!-- Ventana Emergente (Modal de Aviso Legal) -->
+<div class="modal-overlay" id="modalLegal">
+    <div class="modal-content">
+        <div class="modal-title">⚠️ Aviso Legal y Condiciones de la Preoferta</div>
+        <div class="modal-text">
+            Los valores presentados en este documento son estimaciones preliminares generadas automáticamente con base en el porcentaje de cobertura seleccionado por el usuario. No constituyen una oferta comercial vinculante. La producción de energía, el tamaño final del sistema y el ahorro proyectado pueden variar según las condiciones estructurales, patrones climáticos, sombras no contempladas y cambios en el pliego tarifario.
+        </div>
+        <div class="modal-buttons">
+            <button class="btn-modal-cancel" onclick="cerrarModal()">Regresar</button>
+            <button class="btn-modal-accept" onclick="confirmarImpresion()">Entiendo, Imprimir Oferta</button>
+        </div>
+    </div>
 </div>
 
 <script>
 let chart;
+
+function abrirModal() {
+    document.getElementById('modalLegal').style.display = 'flex';
+}
+
+function cerrarModal() {
+    document.getElementById('modalLegal').style.display = 'none';
+}
+
+function confirmarImpresion() {
+    cerrarModal();
+    window.print();
+}
 
 function actualizarSlider() {
     const val = document.getElementById('sliderAhorro').value;
@@ -151,7 +184,6 @@ function calcular() {
     const costoWp = 0.70; 
     const pr = 0.75; 
 
-    // Cálculo dinámico en función del porcentaje seleccionado por el usuario
     let kwp = (consumo * porcentajeDeseado) / (psh * 30 * pr);
     let alerta = "";
 

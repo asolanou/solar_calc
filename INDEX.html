@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cotizador Solar Rápido</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Estilos Generales Web */
+        body { font-family: Arial, sans-serif; background: #f4f4f5; color: #333333; padding: 20px; }
+        .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); max-width: 1000px; margin: 0 auto 20px auto; }
+        h2, h3 { color: #0f172a; margin-top: 0; }
+        
+        /* Controles de Entrada */
+        .grid-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 1px solid #cbd5e1; }
+        input { width: 100%; padding: 12px; border-radius: 5px; border: 1px solid #94a3b8; background: #ffffff; color: #333333; box-sizing: border-box; font-size: 1.05em; font-weight: bold; }
+        label { font-size: 0.9em; color: #475569; display: block; margin-bottom: 5px; font-weight: bold; text-transform: uppercase; }
+        
+        /* Resultados */
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .metric { background: #ffffff; padding: 20px; border-radius: 6px; border: 2px solid #e2e8f0; text-align: center; }
+        .metric-title { font-size: 0.8em; color: #64748b; font-weight: bold; text-transform: uppercase; }
+        .metric-value { font-size: 1.6em; font-weight: bold; color: #0284c7; margin-top: 8px; }
+        .metric-value-green { font-size: 1.6em; font-weight: bold; color: #16a34a; margin-top: 8px; }
+        .warning { color: #dc2626; font-size: 0.8em; margin-top: 5px; display: block; font-weight: normal; }
+        
+        /* Tabla y Botón */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: center; font-size: 0.9em; }
+        th { background: #f1f5f9; color: #0f172a; }
+        
+        /* Disclaimer Legal */
+        .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 5px; margin-top: 30px; }
+        .disclaimer-title { font-weight: bold; font-size: 0.85em; color: #475569; margin-bottom: 5px; }
+        .disclaimer-text { font-size: 0.75em; color: #64748b; text-align: justify; line-height: 1.4; }
+        
+        .btn-print { display: block; width: 100%; max-width: 300px; margin: 20px auto 0 auto; padding: 15px; background-color: #0284c7; color: white; border: none; border-radius: 5px; font-size: 1.1em; font-weight: bold; cursor: pointer; text-align: center; transition: background 0.3s; }
+        .btn-print:hover { background-color: #0369a1; }
+
+        /* Estilos de Impresión (PDF) */
+        @media print {
+            body { background: #ffffff; padding: 0; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print { display: none !important; }
+            .card { border: none; box-shadow: none; margin: 0; padding: 0; max-width: 100%; }
+            .metric { border: 1px solid #cbd5e1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2 class="no-print">⚡ Cotizador de Energía Solar</h2>
+    
+    <!-- Sección de Entradas -->
+    <div class="grid-inputs no-print">
+        <div>
+            <label>Consumo Promedio (kWh/mes):</label>
+            <input type="number" id="consumo" value="352" oninput="calcular()">
+        </div>
+        <div>
+            <label>Potencia Contratada (kW):</label>
+            <input type="number" id="demanda" value="5" oninput="calcular()">
+        </div>
+        <div>
+            <label>Tarifa Actual ($/kWh):</label>
+            <input type="number" id="tarifa" value="0.18" step="0.01" oninput="calcular()">
+        </div>
+    </div>
+
+    <!-- Resultados -->
+    <h3 style="display: none;" class="print-only">Preoferta Comercial - Sistema Fotovoltaico</h3>
+    <div class="grid-4">
+        <div class="metric">
+            <div class="metric-title">TAMAÑO DEL SISTEMA</div>
+            <div class="metric-value" id="resKwp">0.00 kWp</div>
+            <span class="warning" id="alertaUPR"></span>
+        </div>
+        <div class="metric">
+            <div class="metric-title">INVERSIÓN ESTIMADA</div>
+            <div class="metric-value" id="resPrecio">$0.00</div>
+        </div>
+        <div class="metric">
+            <div class="metric-title">AHORRO ANUAL (AÑO 1)</div>
+            <div class="metric-value-green" id="resAhorro">$0.00</div>
+        </div>
+        <div class="metric">
+            <div class="metric-title">COBERTURA / PR</div>
+            <div class="metric-value">80% / 75%</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📈 Proyección de Generación y Ahorro (12 Meses)</h3>
+    <canvas id="grafica" height="100"></canvas>
+    
+    <h3 style="margin-top: 25px;">📋 Detalle Mensual</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Mes Proyectado</th>
+                <th>Generación Estimada (kWh)</th>
+                <th>Ahorro Estimado ($)</th>
+            </tr>
+        </thead>
+        <tbody id="tablaCuerpo"></tbody>
+    </table>
+    
+    <!-- Disclaimer Legal -->
+    <div class="disclaimer-box">
+        <div class="disclaimer-title">Aviso Legal y Condiciones de la Preoferta:</div>
+        <div class="disclaimer-text">
+            Los valores presentados en este documento son estimaciones preliminares generadas automáticamente apuntando a una cobertura óptima del 80% del consumo. No constituyen una oferta comercial vinculante. La producción de energía, el tamaño final del sistema y el ahorro proyectado pueden variar según las condiciones estructurales, patrones climáticos, sombras no contempladas y cambios en el pliego tarifario. El diseño final, precio exacto y viabilidad de interconexión están sujetos a una visita técnica en sitio y un diseño de ingeniería certificado. La capacidad máxima de instalación está supeditada a las normativas vigentes para Usuarios Productores de Energía Renovable (UPR) y la aprobación técnica de la distribuidora correspondiente.
+        </div>
+    </div>
+
+    <button class="btn-print no-print" onclick="window.print()">🖨️ Descargar Preoferta (PDF)</button>
+</div>
+
+<script>
+let chart;
+
+function calcular() {
+    const consumo = parseFloat(document.getElementById('consumo').value) || 0;
+    const demanda = parseFloat(document.getElementById('demanda').value) || 0;
+    const tarifa = parseFloat(document.getElementById('tarifa').value) || 0;
+    
+    // Variables Fijas Ocultas
+    const psh = 5.0; 
+    const costoWp = 0.70; 
+    const pr = 0.75; 
+    const autarquia = 0.80; // Apunta al 80% del consumo mensual
+
+    // Cálculo de capacidad en kWp aplicando el 80% de autarquía
+    let kwp = (consumo * autarquia) / (psh * 30 * pr);
+    let alerta = "";
+
+    // Restricción normativa UPR
+    if (demanda > 0 && kwp > demanda) {
+        kwp = demanda;
+        alerta = "(Limitado a " + demanda + " kWp por Normativa)";
+    }
+
+    // Cálculo de precio (con el 30% de margen)
+    const wp = kwp * 1000;
+    const costoBase = wp * costoWp;
+    const precioFinal = costoBase * 1.30; 
+
+    // Configuración Dinámica de Meses
+    const nombresMeses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+    const factoresBase = [1.05, 1.08, 1.12, 1.05, 0.92, 0.88, 0.90, 0.95, 0.88, 0.85, 0.95, 1.02];
+    
+    const fechaActual = new Date();
+    const mesActual = fechaActual.getMonth();
+    const mesInicio = (mesActual + 1) % 12;
+
+    let mesesDinamicos = [];
+    let produccionDinamica = [];
+    let ahorroDinamico = [];
+    let ahorroTotalAnual = 0;
+    let tablaHtml = "";
+
+    for(let i = 0; i < 12; i++) {
+        let indiceMes = (mesInicio + i) % 12;
+        mesesDinamicos.push(nombresMeses[indiceMes]);
+        
+        let prodMes = kwp * psh * 30 * pr * factoresBase[indiceMes];
+        produccionDinamica.push(prodMes);
+        
+        let ahorroMes = prodMes * tarifa;
+        ahorroDinamico.push(ahorroMes);
+        ahorroTotalAnual += ahorroMes;
+
+        tablaHtml += `<tr>
+            <td><strong>${nombresMeses[indiceMes]}</strong></td>
+            <td>${prodMes.toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1})} kWh</td>
+            <td style="color: #16a34a; font-weight: bold;">$${ahorroMes.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+        </tr>`;
+    }
+
+    // Actualizar interfaz
+    document.getElementById('resKwp').innerText = kwp.toFixed(2) + " kWp";
+    document.getElementById('alertaUPR').innerText = alerta;
+    document.getElementById('resPrecio').innerText = "$" + precioFinal.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('resAhorro').innerText = "$" + ahorroTotalAnual.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    document.getElementById('tablaCuerpo').innerHTML = tablaHtml;
+
+    // Calcular valores máximos para ajustar las escalas visualmente
+    const maxGeneracion = Math.max(...produccionDinamica);
+    const maxAhorro = Math.max(...ahorroDinamico);
+
+    if(chart) chart.destroy();
+    const ctx = document.getElementById('grafica').getContext('2d');
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: mesesDinamicos,
+            datasets: [
+                {
+                    label: 'Generación (kWh)',
+                    data: produccionDinamica,
+                    backgroundColor: '#0ea5e9',
+                    borderRadius: 4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Ahorro ($)',
+                    data: ahorroDinamico,
+                    type: 'line',
+                    borderColor: '#16a34a',
+                    backgroundColor: '#16a34a',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    pointBackgroundColor: '#ffffff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            plugins: { 
+                legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 10 } } 
+            },
+            scales: {
+                y: { 
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    beginAtZero: true,
+                    suggestedMax: maxGeneracion * 1.45,
+                    title: { display: true, text: 'Generación (kWh)', color: '#0ea5e9', font: { weight: 'bold' } },
+                    grid: { color: '#e2e8f0' } 
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    beginAtZero: true,
+                    suggestedMax: maxAhorro * 1.05,
+                    title: { display: true, text: 'Ahorro ($)', color: '#16a34a', font: { weight: 'bold' } },
+                    grid: { drawOnChartArea: false } 
+                },
+                x: { grid: { display: false } }
+            },
+            animation: { duration: 0 } 
+        }
+    });
+}
+
+calcular();
+document.head.insertAdjacentHTML('beforeend', '<style>@media print { .print-only { display: block !important; margin-bottom: 20px; text-align: center; color: #0284c7; } }</style>');
+</script>
+
+</body>
+</html>
